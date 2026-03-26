@@ -31,9 +31,10 @@ class DroneParapluie(Supervisor):
 
     # Phases de vol
     PHASE_TAKEOFF  = 0   # Décollage PID depuis le sol
-    PHASE_SCAN     = 1   # Monte haut pour voir la personne entière
-    PHASE_DESCEND  = 2   # Descend près de la tête
-    PHASE_FOLLOW   = 3   # Suivi synchronisé, piéton marche
+    PHASE_SEARCH   = 1   # Cherche sans bouger (hover)
+    PHASE_APPROACH = 2   # Cible vue ! Vol vers la cible
+    PHASE_DESCEND  = 3   # Descend près de la tête
+    PHASE_FOLLOW   = 4   # Suivi synchronisé, piéton marche
 
     SCAN_ALT       = 2.8  # Altitude de scan (voir personne entière)
     FOLLOW_ALT     = 2.0  # Altitude de suivi (près de la tête)
@@ -44,7 +45,23 @@ class DroneParapluie(Supervisor):
         Supervisor.__init__(self)
         self.time_step = int(self.getBasicTimeStep())
 
-        self.camera = self.getDevice("camera"); self.camera.enable(self.time_step)
+        self.camera_search = self.getDevice("camera")
+        if not self.camera_search:
+            print(">>> ERROR: 'camera' not found. Available devices:")
+            for i in range(self.getNumberOfDevices()):
+                print(f" - {self.getDeviceByIndex(i).getName()}")
+            sys.exit(1)
+            
+        self.camera_search.enable(self.time_step)
+        
+        self.camera_track = self.getDevice("track_camera")
+        if self.camera_track:
+            self.camera_track.enable(self.time_step)
+        else:
+            self.camera_track = self.camera_search
+
+        self.camera = self.camera_search # On démarre avec la caméra avant
+
         self.imu    = self.getDevice("inertial unit"); self.imu.enable(self.time_step)
         self.gps    = self.getDevice("gps"); self.gps.enable(self.time_step)
         self.gyro   = self.getDevice("gyro"); self.gyro.enable(self.time_step)
@@ -63,6 +80,7 @@ class DroneParapluie(Supervisor):
 
         self.drone_node  = self.getSelf()
         self.drone_trans = self.drone_node.getField("translation")
+        self.drone_rot_field = self.drone_node.getField("rotation")
         self.pedestrian  = self.getFromDef("PEDESTRIAN")
 
         self.target_altitude = self.SCAN_ALT  # D'abord monter au scan
@@ -70,6 +88,7 @@ class DroneParapluie(Supervisor):
         self.det_count = 0
         self.step_count = 0
         self.descend_count = 0
+        self.search_yaw = 0.0
 
         if HAS_VISION:
             print("Chargement YOLOv8n...")
@@ -158,8 +177,8 @@ class DroneParapluie(Supervisor):
             # ═══ PHASE 1 : DÉCOLLAGE (PID) ═══
             if self.phase == self.PHASE_TAKEOFF:
                 if z > self.SCAN_ALT - 0.5:
-                    self.phase = self.PHASE_SCAN
-                    print("Phase 2 : Altitude SCAN atteinte — recherche personne...")
+                    self.phase = self.PHASE_SEARCH
+                    print("Phase 2 : Altitude de recherche atteinte — je cherche la cible...")
 
                 alt_err = max(min(self.SCAN_ALT - z + self.K_VERTICAL_OFFSET, 1), -1)
                 vert = self.K_VERTICAL_P * pow(alt_err, 3.0)
@@ -171,28 +190,54 @@ class DroneParapluie(Supervisor):
                 self.m_rr.setVelocity(  self.K_VERTICAL_THRUST + vert - pi + ri)
                 continue
 
-            # ═══ PHASE 2 : SCAN (altitude haute, voir personne entière) ═══
-            elif self.phase == self.PHASE_SCAN:
-                ped = self.get_ped_pos()
-                self.move_above(ped, self.SCAN_ALT)
+            # ═══ PHASE 2 : RECHERCHE (Vol stationnaire + Scan 360) ═══
+            elif self.phase == self.PHASE_SEARCH:
+                self.camera = self.camera_search # Utilise la caméra avant
+                # Regarde devant et légèrement vers le bas pour voir loin (-0.5 max)
+                self.getDevice("camera pitch").setPosition(-0.3)
+                
+                # Tourne sur lui-même lentement (Scan 360°)
+                self.search_yaw += 0.02
+                self.drone_rot_field.setSFRotation([0, 0, 1, self.search_yaw])
+
+                # Maintien de la position X,Y au niveau SCAN_ALT
+                cur_pos = self.drone_trans.getSFVec3f()
+                self.move_above(cur_pos, self.SCAN_ALT)
                 self.set_hover()
 
                 # Détection de la personne complète
                 if self.step_count % 10 == 0:
-                    if self.detect_red_fast():
+                    yolo_ok, red_ok = self.detect_full()
+                    if yolo_ok or red_ok:
                         self.det_count += 1
-                    if self.step_count % 15 == 0:
-                        yolo_ok, red_ok = self.detect_full()
-                        if yolo_ok:
-                            self.det_count += 2
+                        if self.det_count >= 2:
+                            self.phase = self.PHASE_APPROACH
+                            print(">>> PERSONNE DÉTECTÉE ! Je m'approche...")
+                    else:
+                        self.det_count = 0
 
-                    if self.det_count >= 2:
-                        self.phase = self.PHASE_DESCEND
-                        self.descend_count = 0
-                        print(">>> PERSONNE DÉTECTÉE en entier ! Descente vers la tête...")
+            # ═══ PHASE 3 : APPROCHE (Vers la cible détectée) ═══
+            elif self.phase == self.PHASE_APPROACH:
+                ped = self.get_ped_pos()
+                cur_pos = self.drone_trans.getSFVec3f()
+                
+                # Orientation de la face avant du drone vers la personne
+                target_yaw = math.atan2(ped[1] - cur_pos[1], ped[0] - cur_pos[0])
+                self.drone_rot_field.setSFRotation([0, 0, 1, target_yaw])
 
-            # ═══ PHASE 3 : DESCENTE (vers altitude de suivi près de la tête) ═══
+                dist = self.move_above(ped, self.SCAN_ALT, alpha=0.03) # Vol lent vers lui
+                self.set_hover()
+
+                if dist < 0.4:
+                    self.phase = self.PHASE_DESCEND
+                    self.descend_count = 0
+                    print(">>> Au-dessus de la cible ! Descente vers la tête...")
+
+            # ═══ PHASE 4 : DESCENTE (vers altitude de suivi près de la tête) ═══
             elif self.phase == self.PHASE_DESCEND:
+                # Bascule sur la caméra fixe du dessous pour le suivi vertical !
+                self.camera = self.camera_track
+                
                 ped = self.get_ped_pos()
                 self.move_above(ped, self.FOLLOW_ALT, self.DESCEND_ALPHA)
                 self.set_hover()
@@ -207,8 +252,10 @@ class DroneParapluie(Supervisor):
                         print(">>> Position OK ! Piéton MARCHE ! Suivi synchronisé !")
                         print("=" * 55)
 
-            # ═══ PHASE 4 : SUIVI SYNCHRONISÉ ═══
+            # ═══ PHASE 5 : SUIVI SYNCHRONISÉ ═══
             elif self.phase == self.PHASE_FOLLOW:
+                self.camera = self.camera_track # Maintien de la caméra du dessous
+                
                 ped = self.get_ped_pos()
                 dist = self.move_above(ped, self.FOLLOW_ALT)
                 self.set_hover()

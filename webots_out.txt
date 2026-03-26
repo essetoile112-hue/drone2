@@ -1,0 +1,27 @@
+INFO: drone_controller: Starting controller: python3 -u drone_controller.py
+INFO: pedestrian_controller: Starting controller: python3 -u pedestrian_controller.py "--trajectory=-8 -5, 10 -5, -8 -5" --speed=2.5
+Device "camera" was not found on robot "Mavic 2 PRO"
+>>> ERROR: 'camera' not found. Available devices:
+ - compass
+ - gps
+ - gyro
+ - inertial unit
+ - rear left propeller
+ - rear right propeller
+ - front right propeller
+ - camera yaw
+ - camera yaw sensor
+ - camera pitch
+ - camera pitch sensor
+ - camera roll
+ - camera roll sensor
+ - track_camera
+ - front right led
+ - front left led
+ - front left propeller
+WARNING: 'drone_controller' controller exited with status: 1.
+INFO: The screenshot has been created:
+/home/firas.mrabet/Pictures/drone_parapluie_29.png
+
+Do you want to open it now?
+INFO: pedestrian_controller: Terminating.

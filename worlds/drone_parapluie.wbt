@@ -26,8 +26,8 @@ WorldInfo {
   }
 }
 Viewpoint {
-  orientation 0.0698718405872556 -0.9450475015640009 -0.3193793131694489 5.82816906959775
-  position -23.512054163940537 -5.7531351594702596 6.905474922777063
+  orientation -0.13549485326986863 -0.761010029523239 0.6344327227550732 5.736005292834128
+  position -25.335428650060713 1.968099936131363 6.753619896693286
   follow "Mavic 2 PRO"
   followSmoothness 0.1
 }
@@ -63,21 +63,35 @@ Forest {
   density 0.1
 }
 Mavic2Pro {
-  translation -8 -5 0.1
-  rotation 0 0 -1 1.5708
+  hidden position_0_0 -7.378961712482624e-09
+  hidden position_6_0 -9.1358125774042e-09
+  hidden position_7_0 3.252694909243189e-09
+  translation 1 -4.99607 0.0659207
+  rotation -0.027219983698138637 -0.0272347220636984 -0.9992583962127044 1.5715480413894016
   controller "drone_controller"
   supervisor TRUE
   bodySlot [
-    UmbrellaShape {
-      translation 0 0 0.1
-      color 0.1 0.4 0.8
-      scale 0.8 0.8 0.8
+    Group {
+      children [
+        UmbrellaShape {
+          translation 0 0 0.1
+          color 0.1 0.4 0.8
+          scale 0.8 0.8 0.8
+        }
+        Camera {
+          translation 0 0 -0.05
+          rotation 0.6532654049401873 -0.6532654049401873 -0.382738319765171 -2.4189
+          name "track_camera"
+          fieldOfView 1.5
+          width 640
+          height 480
+        }
+      ]
     }
   ]
   cameraSlot [
     Camera {
       translation 0 0 -0.05
-      rotation 0.6532654049401873 -0.6532654049401873 -0.382738319765171 -2.4189
       fieldOfView 1.5
       width 640
       height 480
@@ -86,7 +100,6 @@ Mavic2Pro {
 }
 DEF PEDESTRIAN Pedestrian {
   translation -8 -5 1.27
-  rotation 0 0 1 1.5708
   name "PEDESTRIAN"
   controller "pedestrian_controller"
   controllerArgs [
