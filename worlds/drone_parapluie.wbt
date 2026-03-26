@@ -1,0 +1,98 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/appearances/protos/Grass.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/road/protos/Road.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/appearances/protos/Pavement.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/trees/protos/Forest.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/dji/mavic/protos/Mavic2Pro.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/humans/pedestrian/protos/Pedestrian.proto"
+EXTERNPROTO "../protos/UmbrellaShape.proto"
+
+WorldInfo {
+  info [
+    "Simulation d'un Drone Parapluie"
+    "Le drone suit le piéton pour le protéger de la pluie."
+    "Mode 1 : Suivi GPS (Mains libres)"
+    "Mode 2 : Suivi Intelligent Vision + GPS"
+  ]
+  title "Drone Parapluie"
+  basicTimeStep 8
+  defaultDamping Damping {
+    linear 0.5
+    angular 0.5
+  }
+}
+Viewpoint {
+  orientation 0.0698718405872556 -0.9450475015640009 -0.3193793131694489 5.82816906959775
+  position -23.512054163940537 -5.7531351594702596 6.905474922777063
+  follow "Mavic 2 PRO"
+  followSmoothness 0.1
+}
+TexturedBackground {
+  luminosity 1.5
+}
+TexturedBackgroundLight {
+}
+Floor {
+  size 100 100
+  tileSize 2 2
+  appearance Grass {
+  }
+}
+Road {
+  translation 0 0 0.01
+  width 4
+  wayPoints [
+    -20 -5 0
+    20 -5 0
+  ]
+  splineSubdivision 1
+  appearance Pavement {
+  }
+}
+Forest {
+  shape [
+    -25 10
+    25 10
+    25 25
+    -25 25
+  ]
+  density 0.1
+}
+Mavic2Pro {
+  translation -8 -5 0.1
+  rotation 0 0 -1 1.5708
+  controller "drone_controller"
+  supervisor TRUE
+  bodySlot [
+    UmbrellaShape {
+      translation 0 0 0.1
+      color 0.1 0.4 0.8
+      scale 0.8 0.8 0.8
+    }
+  ]
+  cameraSlot [
+    Camera {
+      translation 0 0 -0.05
+      rotation 0.6532654049401873 -0.6532654049401873 -0.382738319765171 -2.4189
+      fieldOfView 1.5
+      width 640
+      height 480
+    }
+  ]
+}
+DEF PEDESTRIAN Pedestrian {
+  translation -8 -5 1.27
+  rotation 0 0 1 1.5708
+  name "PEDESTRIAN"
+  controller "pedestrian_controller"
+  controllerArgs [
+    "--trajectory=-8 -5, 10 -5, -8 -5"
+    "--speed=2.5"
+  ]
+  shirtColor 0.8 0.2 0.2
+  pantsColor 0.2 0.2 0.8
+}

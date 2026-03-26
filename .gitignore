@@ -1,0 +1,16 @@
+# Python virtual environment
+venv/
+
+# YOLOv8 model weights (large files)
+*.pt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Webots cache
+.textures/
+
+# Signal files
+/tmp/drone_go.txt
