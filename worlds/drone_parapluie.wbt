@@ -104,7 +104,7 @@ DEF PEDESTRIAN Pedestrian {
   controller "pedestrian_controller"
   controllerArgs [
     "--trajectory=-8 -5, 10 -5, -8 -5"
-    "--speed=2.5"
+    "--speed=4.0"
   ]
   shirtColor 0.8 0.2 0.2
   pantsColor 0.2 0.2 0.8
